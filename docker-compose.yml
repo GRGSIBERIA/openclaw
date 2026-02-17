@@ -1,45 +1,57 @@
 services:
   openclaw-gateway:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
     environment:
       HOME: /home/node
       TERM: xterm-256color
+      TZ: ${TZ:-Asia/Tokyo}
+
+      # Gateway auth
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
-      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
-      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
+
+      # LLM (Codex/OpenAI)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENCLAW_DEFAULT_MODEL: ${OPENCLAW_DEFAULT_MODEL:-openai-codex/gpt-5.3-codex}
+
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${OPENCLAW_CONFIG_DIR:-./.openclaw}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-./workspace}:/home/node/.openclaw/workspace
+
     ports:
       - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
       - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+
     init: true
     restart: unless-stopped
     command:
-      [
-        "node",
-        "dist/index.js",
-        "gateway",
-        "--bind",
-        "${OPENCLAW_GATEWAY_BIND:-lan}",
-        "--port",
-        "18789",
-      ]
+      - node
+      - dist/index.js
+      - gateway
+      - --bind
+      - ${OPENCLAW_GATEWAY_BIND:-lan}
+      - --port
+      - "18789"
 
   openclaw-cli:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    depends_on:
+      - openclaw-gateway
     environment:
       HOME: /home/node
       TERM: xterm-256color
+      TZ: ${TZ:-Asia/Tokyo}
+
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_GATEWAY_URL: ${OPENCLAW_GATEWAY_URL:-http://openclaw-gateway:18789}
+
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENCLAW_DEFAULT_MODEL: ${OPENCLAW_DEFAULT_MODEL:-openai-codex/gpt-5.3-codex}
+
       BROWSER: echo
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
-      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
-      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
+
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${OPENCLAW_CONFIG_DIR:-./.openclaw}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-./workspace}:/home/node/.openclaw/workspace
     stdin_open: true
     tty: true
     init: true
