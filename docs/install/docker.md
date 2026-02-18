@@ -91,6 +91,16 @@ docker compose run --rm openclaw-cli onboard
 docker compose up -d openclaw-gateway
 ```
 
+If you skip `onboard`, the gateway may restart with:
+`Missing config. Run openclaw setup or set gateway.mode=local`.
+You can bootstrap the minimum config, then start the gateway:
+
+```bash
+docker compose run --rm openclaw-cli config set gateway.mode local
+docker compose run --rm openclaw-cli config set gateway.auth.token "$OPENCLAW_GATEWAY_TOKEN"
+docker compose up -d openclaw-gateway
+```
+
 Note: run `docker compose ...` from the repo root. If you enabled
 `OPENCLAW_EXTRA_MOUNTS` or `OPENCLAW_HOME_VOLUME`, the setup script writes
 `docker-compose.extra.yml`; include it when running Compose elsewhere:
@@ -226,16 +236,37 @@ If you need Playwright to install system deps, rebuild the image with
 
 ### Permissions + EACCES
 
-The image runs as `node` (uid 1000). If you see permission errors on
-`/home/node/.openclaw`, make sure your host bind mounts are owned by uid 1000.
+The image runs as `node` (uid 1000). If your bind-mounted config directory was
+created by `root` (for example by running Docker with `sudo`), onboarding can
+fail with:
 
-Example (Linux host):
+`Error: EACCES: permission denied, mkdir '/home/node/.openclaw/agents/main/agent'`
+
+Fix ownership, then retry onboarding.
+
+If you use the default paths from this repo (`./.openclaw` and `./workspace`):
+
+```bash
+sudo chown -R 1000:1000 ./.openclaw ./workspace
+docker compose run --rm openclaw-cli onboard
+```
+
+If you use custom bind mounts (`OPENCLAW_CONFIG_DIR` / `OPENCLAW_WORKSPACE_DIR`):
 
 ```bash
 sudo chown -R 1000:1000 /path/to/openclaw-config /path/to/openclaw-workspace
+docker compose run --rm openclaw-cli onboard
 ```
 
-If you choose to run as root for convenience, you accept the security tradeoff.
+If you prefer fixing from inside Docker (no host path lookup), run once as root:
+
+```bash
+docker compose run --rm --user root openclaw-cli \
+  sh -lc 'chown -R node:node /home/node/.openclaw'
+```
+
+If you choose to run everything as root for convenience, you accept the security
+tradeoff.
 
 ### Faster rebuilds (recommended)
 
