@@ -236,9 +236,35 @@ If you need Playwright to install system deps, rebuild the image with
 
 ### Permissions + EACCES
 
+
+If `docker compose run --rm openclaw-cli onboard` fails with:
+
+`invalid spec: :/home/node/.openclaw: empty section between colons`
+
+your mount source path resolved to an empty string. This usually means one of:
+
+- you exported `OPENCLAW_CONFIG_DIR` or `OPENCLAW_WORKSPACE_DIR` as empty
+- you are loading an extra compose file (for example from `COMPOSE_FILE`) that
+  references `${OPENCLAW_CONFIG_DIR}` / `${OPENCLAW_WORKSPACE_DIR}` without
+  defaults
+
+Fix by clearing empty vars and setting explicit host paths:
+
+```bash
+unset OPENCLAW_CONFIG_DIR OPENCLAW_WORKSPACE_DIR
+export OPENCLAW_CONFIG_DIR="$PWD/.openclaw"
+export OPENCLAW_WORKSPACE_DIR="$PWD/workspace"
+mkdir -p "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_WORKSPACE_DIR"
+docker compose run --rm openclaw-cli onboard
+```
+
+Warnings like `OPENCLAW_GATEWAY_TOKEN ... not set` or `CLAUDE_* ... not set`
+are only env warnings; they do not cause the `invalid spec` mount error.
+
 The image runs as `node` (uid 1000). If your bind-mounted config directory was
 created by `root` (for example by running Docker with `sudo`), onboarding can
 fail with:
+
 
 `Error: EACCES: permission denied, mkdir '/home/node/.openclaw/agents/main/agent'`
 
