@@ -91,6 +91,16 @@ docker compose run --rm openclaw-cli onboard
 docker compose up -d openclaw-gateway
 ```
 
+If you skip `onboard`, the gateway may restart with:
+`Missing config. Run openclaw setup or set gateway.mode=local`.
+You can bootstrap the minimum config, then start the gateway:
+
+```bash
+docker compose run --rm openclaw-cli config set gateway.mode local
+docker compose run --rm openclaw-cli config set gateway.auth.token "$OPENCLAW_GATEWAY_TOKEN"
+docker compose up -d openclaw-gateway
+```
+
 Note: run `docker compose ...` from the repo root. If you enabled
 `OPENCLAW_EXTRA_MOUNTS` or `OPENCLAW_HOME_VOLUME`, the setup script writes
 `docker-compose.extra.yml`; include it when running Compose elsewhere:
