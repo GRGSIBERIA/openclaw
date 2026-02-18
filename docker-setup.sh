@@ -23,9 +23,17 @@ fi
 
 OPENCLAW_CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-$HOME/.openclaw}"
 OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$HOME/.openclaw/workspace}"
+OPENCLAW_CONTAINER_UID="${OPENCLAW_CONTAINER_UID:-1000}"
+OPENCLAW_CONTAINER_GID="${OPENCLAW_CONTAINER_GID:-1000}"
 
 mkdir -p "$OPENCLAW_CONFIG_DIR"
 mkdir -p "$OPENCLAW_WORKSPACE_DIR"
+
+# The Docker image runs as node (uid/gid 1000). When this setup script is run
+# with sudo, bind mount directories can become root-owned and break onboarding.
+if [[ "$(id -u)" -eq 0 ]]; then
+  chown "$OPENCLAW_CONTAINER_UID:$OPENCLAW_CONTAINER_GID" "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_WORKSPACE_DIR"
+fi
 
 export OPENCLAW_CONFIG_DIR
 export OPENCLAW_WORKSPACE_DIR

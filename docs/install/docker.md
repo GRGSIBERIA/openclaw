@@ -38,6 +38,15 @@ From repo root:
 ./docker-setup.sh
 ```
 
+If you must run with `sudo`, set explicit bind paths first so config/workspace
+stay in your repo (not under `/root`):
+
+```bash
+sudo OPENCLAW_CONFIG_DIR="$PWD/.openclaw" \
+  OPENCLAW_WORKSPACE_DIR="$PWD/workspace" \
+  ./docker-setup.sh
+```
+
 This script:
 
 - builds the gateway image
@@ -236,7 +245,6 @@ If you need Playwright to install system deps, rebuild the image with
 
 ### Permissions + EACCES
 
-
 If `docker compose run --rm openclaw-cli onboard` fails with:
 
 `invalid spec: :/home/node/.openclaw: empty section between colons`
@@ -265,10 +273,12 @@ The image runs as `node` (uid 1000). If your bind-mounted config directory was
 created by `root` (for example by running Docker with `sudo`), onboarding can
 fail with:
 
-
 `Error: EACCES: permission denied, mkdir '/home/node/.openclaw/agents/main/agent'`
 
 Fix ownership, then retry onboarding.
+
+If you use `docker-setup.sh`, it already `chown`s these directories when run as
+root. If you still hit permission errors (or used manual compose), run:
 
 If you use the default paths from this repo (`./.openclaw` and `./workspace`):
 
