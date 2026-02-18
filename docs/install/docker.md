@@ -236,6 +236,7 @@ If you need Playwright to install system deps, rebuild the image with
 
 ### Permissions + EACCES
 
+
 If `docker compose run --rm openclaw-cli onboard` fails with:
 
 `invalid spec: :/home/node/.openclaw: empty section between colons`
@@ -263,6 +264,7 @@ are only env warnings; they do not cause the `invalid spec` mount error.
 The image runs as `node` (uid 1000). If your bind-mounted config directory was
 created by `root` (for example by running Docker with `sudo`), onboarding can
 fail with:
+
 
 `Error: EACCES: permission denied, mkdir '/home/node/.openclaw/agents/main/agent'`
 
