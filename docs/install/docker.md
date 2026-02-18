@@ -38,6 +38,15 @@ From repo root:
 ./docker-setup.sh
 ```
 
+If you must run with `sudo`, set explicit bind paths first so config/workspace
+stay in your repo (not under `/root`):
+
+```bash
+sudo OPENCLAW_CONFIG_DIR="$PWD/.openclaw" \
+  OPENCLAW_WORKSPACE_DIR="$PWD/workspace" \
+  ./docker-setup.sh
+```
+
 This script:
 
 - builds the gateway image
@@ -88,6 +97,16 @@ See [`ClawDock` Helper README](https://github.com/openclaw/openclaw/blob/main/sc
 ```bash
 docker build -t openclaw:local -f Dockerfile .
 docker compose run --rm openclaw-cli onboard
+docker compose up -d openclaw-gateway
+```
+
+If you skip `onboard`, the gateway may restart with:
+`Missing config. Run openclaw setup or set gateway.mode=local`.
+You can bootstrap the minimum config, then start the gateway:
+
+```bash
+docker compose run --rm openclaw-cli config set gateway.mode local
+docker compose run --rm openclaw-cli config set gateway.auth.token "$OPENCLAW_GATEWAY_TOKEN"
 docker compose up -d openclaw-gateway
 ```
 
@@ -226,16 +245,64 @@ If you need Playwright to install system deps, rebuild the image with
 
 ### Permissions + EACCES
 
-The image runs as `node` (uid 1000). If you see permission errors on
-`/home/node/.openclaw`, make sure your host bind mounts are owned by uid 1000.
+If `docker compose run --rm openclaw-cli onboard` fails with:
 
-Example (Linux host):
+`invalid spec: :/home/node/.openclaw: empty section between colons`
+
+your mount source path resolved to an empty string. This usually means one of:
+
+- you exported `OPENCLAW_CONFIG_DIR` or `OPENCLAW_WORKSPACE_DIR` as empty
+- you are loading an extra compose file (for example from `COMPOSE_FILE`) that
+  references `${OPENCLAW_CONFIG_DIR}` / `${OPENCLAW_WORKSPACE_DIR}` without
+  defaults
+
+Fix by clearing empty vars and setting explicit host paths:
+
+```bash
+unset OPENCLAW_CONFIG_DIR OPENCLAW_WORKSPACE_DIR
+export OPENCLAW_CONFIG_DIR="$PWD/.openclaw"
+export OPENCLAW_WORKSPACE_DIR="$PWD/workspace"
+mkdir -p "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_WORKSPACE_DIR"
+docker compose run --rm openclaw-cli onboard
+```
+
+Warnings like `OPENCLAW_GATEWAY_TOKEN ... not set` or `CLAUDE_* ... not set`
+are only env warnings; they do not cause the `invalid spec` mount error.
+
+The image runs as `node` (uid 1000). If your bind-mounted config directory was
+created by `root` (for example by running Docker with `sudo`), onboarding can
+fail with:
+
+`Error: EACCES: permission denied, mkdir '/home/node/.openclaw/agents/main/agent'`
+
+Fix ownership, then retry onboarding.
+
+If you use `docker-setup.sh`, it already `chown`s these directories when run as
+root. If you still hit permission errors (or used manual compose), run:
+
+If you use the default paths from this repo (`./.openclaw` and `./workspace`):
+
+```bash
+sudo chown -R 1000:1000 ./.openclaw ./workspace
+docker compose run --rm openclaw-cli onboard
+```
+
+If you use custom bind mounts (`OPENCLAW_CONFIG_DIR` / `OPENCLAW_WORKSPACE_DIR`):
 
 ```bash
 sudo chown -R 1000:1000 /path/to/openclaw-config /path/to/openclaw-workspace
+docker compose run --rm openclaw-cli onboard
 ```
 
-If you choose to run as root for convenience, you accept the security tradeoff.
+If you prefer fixing from inside Docker (no host path lookup), run once as root:
+
+```bash
+docker compose run --rm --user root openclaw-cli \
+  sh -lc 'chown -R node:node /home/node/.openclaw'
+```
+
+If you choose to run everything as root for convenience, you accept the security
+tradeoff.
 
 ### Faster rebuilds (recommended)
 
